@@ -46,7 +46,7 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 
   const exercise = {
     description,
-    duration: parseInt(duration),
+    duration: parseInt(duration), // Pastikan durasi adalah angka
     date: date ? new Date(date).toDateString() : new Date().toDateString() // Memastikan format tanggal yang benar
   };
 
@@ -64,7 +64,7 @@ app.post('/api/users/:_id/exercises', (req, res) => {
   });
 });
 
-// Mendapatkan log exercise
+// Mendapatkan log exercise dengan filter dari, hingga, dan limit
 app.get('/api/users/:_id/logs', (req, res) => {
   const { _id } = req.params;
   const { from, to, limit } = req.query;
@@ -74,25 +74,29 @@ app.get('/api/users/:_id/logs', (req, res) => {
 
   let log = user.exercises || [];
 
+  // Memfilter log berdasarkan tanggal dari dan hingga
   if (from || to) {
     log = log.filter(ex => {
-      const d = new Date(ex.date);
-      if (from && d < new Date(from)) return false;
-      if (to && d > new Date(to)) return false;
+      const exerciseDate = new Date(ex.date);
+      if (from && exerciseDate < new Date(from)) return false;
+      if (to && exerciseDate > new Date(to)) return false;
       return true;
     });
   }
 
+  // Menggunakan parameter limit untuk membatasi jumlah log
   if (limit) log = log.slice(0, Number(limit));
 
   // Memastikan setiap log menggunakan format tanggal yang benar (dateString)
   log = log.map(exercise => {
     return {
-      ...exercise,
+      description: exercise.description,
+      duration: Number(exercise.duration), // Pastikan durasi adalah angka
       date: new Date(exercise.date).toDateString() // Mengonversi ke format string yang benar
     };
   });
 
+  // Mengembalikan log sesuai format yang benar
   res.json({
     username: user.username,
     _id: user._id,
