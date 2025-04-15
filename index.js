@@ -3,79 +3,66 @@ const app = express();
 const cors = require('cors');
 require('dotenv').config();
 
-// Middleware
 app.use(cors());
 app.use(express.static('public'));
-app.use(express.json()); // Untuk JSON
-app.use(express.urlencoded({ extended: false })); // Untuk form-urlencoded
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Penting untuk form data
 
-// In-memory database
+// In-memory database sementara
 let users = [];
 
-// Home page
+// Route halaman utama
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-// Create a new user
+// Membuat user baru
 app.post('/api/users', (req, res) => {
   const { username } = req.body;
   if (!username) return res.status(400).json({ error: "Username is required" });
 
   const newUser = {
     username,
-    _id: Date.now().toString(),
-    exercises: []
+    _id: Date.now().toString() // ID unik sederhana
   };
 
   users.push(newUser);
-  res.json({ username: newUser.username, _id: newUser._id });
+  res.json(newUser);
 });
 
-// Get all users
+// Mendapatkan semua user
 app.get('/api/users', (req, res) => {
-  const userList = users.map(user => ({
-    _id: user._id,
-    username: user.username
-  }));
+  const userList = users.map(u => ({ username: u.username, _id: u._id }));
   res.json(userList);
 });
 
-// Add exercise
+// Menambahkan exercise
 app.post('/api/users/:_id/exercises', (req, res) => {
   const { _id } = req.params;
-  let { description, duration, date } = req.body;
+  const { description, duration, date } = req.body;
 
   const user = users.find(u => u._id === _id);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  if (!description || !duration) {
-    return res.status(400).json({ error: "Description and duration are required" });
-  }
-
-  duration = parseInt(duration);
-  if (isNaN(duration)) {
-    return res.status(400).json({ error: "Duration must be a number" });
-  }
-
   const exercise = {
     description,
-    duration,
+    duration: parseInt(duration),
     date: date ? new Date(date).toDateString() : new Date().toDateString()
   };
 
+  if (!user.exercises) user.exercises = [];
   user.exercises.push(exercise);
 
   res.json({
-    _id: user._id,
     username: user.username,
+    _id: user._id,
     description: exercise.description,
     duration: exercise.duration,
     date: exercise.date
   });
 });
 
-// Get exercise logs
+// Mendapatkan log exercise
 app.get('/api/users/:_id/logs', (req, res) => {
   const { _id } = req.params;
   const { from, to, limit } = req.query;
@@ -83,32 +70,28 @@ app.get('/api/users/:_id/logs', (req, res) => {
   const user = users.find(u => u._id === _id);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  let log = [...user.exercises];
+  let log = user.exercises || [];
 
-  // Filter by date
-  if (from) {
-    const fromDate = new Date(from);
-    log = log.filter(ex => new Date(ex.date) >= fromDate);
-  }
-  if (to) {
-    const toDate = new Date(to);
-    log = log.filter(ex => new Date(ex.date) <= toDate);
+  if (from || to) {
+    log = log.filter(ex => {
+      const d = new Date(ex.date);
+      if (from && d < new Date(from)) return false;
+      if (to && d > new Date(to)) return false;
+      return true;
+    });
   }
 
-  // Limit
-  if (limit) {
-    log = log.slice(0, parseInt(limit));
-  }
+  if (limit) log = log.slice(0, Number(limit));
 
   res.json({
-    _id: user._id,
     username: user.username,
+    _id: user._id,
     count: log.length,
     log
   });
 });
 
-// Start server
+// Menjalankan server
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port);
 });
