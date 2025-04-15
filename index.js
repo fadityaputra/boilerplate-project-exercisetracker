@@ -6,15 +6,10 @@ require('dotenv').config();
 app.use(cors());
 app.use(express.static('public'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Penting untuk form data
+app.use(express.urlencoded({ extended: true }));
 
-// In-memory database sementara
+// In-memory storage untuk users
 let users = [];
-
-// Route halaman utama
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/views/index.html');
-});
 
 // Membuat user baru
 app.post('/api/users', (req, res) => {
@@ -23,20 +18,21 @@ app.post('/api/users', (req, res) => {
 
   const newUser = {
     username,
-    _id: Date.now().toString() // ID unik sederhana
+    _id: Date.now().toString(),
+    exercises: [] // Memastikan user memiliki array exercises
   };
 
   users.push(newUser);
   res.json(newUser);
 });
 
-// Mendapatkan semua user
+// Mendapatkan daftar semua user
 app.get('/api/users', (req, res) => {
   const userList = users.map(u => ({ username: u.username, _id: u._id }));
   res.json(userList);
 });
 
-// Menambahkan exercise
+// Menambahkan exercise untuk user tertentu
 app.post('/api/users/:_id/exercises', (req, res) => {
   const { _id } = req.params;
   const { description, duration, date } = req.body;
@@ -46,12 +42,11 @@ app.post('/api/users/:_id/exercises', (req, res) => {
 
   const exercise = {
     description,
-    duration: parseInt(duration), // Pastikan durasi adalah angka
-    date: date ? new Date(date).toDateString() : new Date().toDateString() // Memastikan format tanggal yang benar
+    duration: parseInt(duration), // Pastikan duration adalah angka
+    date: date ? new Date(date).toDateString() : new Date().toDateString() // Format tanggal yang benar
   };
 
   // Menambahkan exercise ke user
-  if (!user.exercises) user.exercises = [];
   user.exercises.push(exercise);
 
   // Mengembalikan response sesuai format yang benar
@@ -64,7 +59,7 @@ app.post('/api/users/:_id/exercises', (req, res) => {
   });
 });
 
-// Mendapatkan log exercise dengan filter dari, hingga, dan limit
+// Mendapatkan log exercise untuk user tertentu
 app.get('/api/users/:_id/logs', (req, res) => {
   const { _id } = req.params;
   const { from, to, limit } = req.query;
@@ -74,7 +69,7 @@ app.get('/api/users/:_id/logs', (req, res) => {
 
   let log = user.exercises || [];
 
-  // Memfilter log berdasarkan tanggal dari dan hingga
+  // Memfilter log berdasarkan parameter from dan to
   if (from || to) {
     log = log.filter(ex => {
       const exerciseDate = new Date(ex.date);
@@ -84,24 +79,22 @@ app.get('/api/users/:_id/logs', (req, res) => {
     });
   }
 
-  // Menggunakan parameter limit untuk membatasi jumlah log
+  // Menggunakan limit untuk membatasi jumlah log yang dikirim
   if (limit) log = log.slice(0, Number(limit));
 
-  // Memastikan setiap log menggunakan format tanggal yang benar (dateString)
-  log = log.map(exercise => {
-    return {
-      description: exercise.description,
-      duration: Number(exercise.duration), // Pastikan durasi adalah angka
-      date: new Date(exercise.date).toDateString() // Mengonversi ke format string yang benar
-    };
-  });
+  // Memastikan setiap item log memiliki deskripsi, durasi, dan tanggal yang benar
+  log = log.map(exercise => ({
+    description: exercise.description,
+    duration: exercise.duration, // Pastikan durasi adalah angka
+    date: new Date(exercise.date).toDateString() // Format tanggal yang benar
+  }));
 
-  // Mengembalikan log sesuai format yang benar
+  // Mengembalikan response dengan count dan log
   res.json({
     username: user.username,
     _id: user._id,
-    count: log.length,
-    log
+    count: log.length,  // Menambahkan count yang berisi jumlah latihan
+    log  // Mengembalikan log yang sudah difilter dan diformat
   });
 });
 
