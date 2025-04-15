@@ -47,7 +47,7 @@ app.post('/api/users/:_id/exercises', (req, res) => {
   const exercise = {
     description,
     duration: parseInt(duration),
-    date: date ? new Date(date).toDateString() : new Date().toDateString()
+    date: date ? new Date(date).toDateString() : new Date().toDateString() // Memastikan format tanggal yang benar
   };
 
   // Menambahkan exercise ke user
@@ -84,6 +84,14 @@ app.get('/api/users/:_id/logs', (req, res) => {
   }
 
   if (limit) log = log.slice(0, Number(limit));
+
+  // Memastikan setiap log menggunakan format tanggal yang benar (dateString)
+  log = log.map(exercise => {
+    return {
+      ...exercise,
+      date: new Date(exercise.date).toDateString() // Mengonversi ke format string yang benar
+    };
+  });
 
   res.json({
     username: user.username,
