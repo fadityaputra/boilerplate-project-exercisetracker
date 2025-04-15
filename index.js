@@ -50,9 +50,11 @@ app.post('/api/users/:_id/exercises', (req, res) => {
     date: date ? new Date(date).toDateString() : new Date().toDateString()
   };
 
+  // Menambahkan exercise ke user
   if (!user.exercises) user.exercises = [];
   user.exercises.push(exercise);
 
+  // Mengembalikan response sesuai format yang benar
   res.json({
     username: user.username,
     _id: user._id,
